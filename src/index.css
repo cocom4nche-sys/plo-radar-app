@@ -1,3 +1,173 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+body {
+  background: #0b1220;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: #e2e8f0;
+  padding: 40px;
+}
+
+/* HEADER */
+
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 30px;
+  letter-spacing: 0.5px;
+}
+
+/* TOP CONTROLS */
+
+.top-controls {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+select {
+  padding: 8px 12px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: white;
+  border-radius: 8px;
+}
+
+/* DROPZONE */
+
+.hr-dropzone {
+  border: 2px dashed #334155;
+  padding: 28px;
+  text-align: center;
+  margin-bottom: 50px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #64748b;
+  transition: 0.25s ease;
+}
+
+.hr-dropzone:hover {
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+/* SECTION */
+
+.hr-section {
+  margin-bottom: 70px;
+}
+
+/* 🔥 TITRE CATEGORIE PREMIUM */
+
+.hr-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* Ligne fine décorative */
+
+.hr-section h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #1e293b;
+}
+
+/* Compteur */
+
+.anki-counter {
+  color: #22c55e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* GRID */
+
+.hr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 20px;
+}
+
+/* CARD */
+
+.hr-card {
+  background: #111827;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hr-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* IMAGE */
+
+.hr-card img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+/* ACTION BAR */
+
+.hr-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: #0f172a;
+  font-size: 12px;
+}
+
+.anki-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+}
+
+.delete-btn {
+  background: #7f1d1d;
+  border: none;
+  color: white;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.delete-btn:hover {
+  background: #991b1b;
+}
+
+/* MODAL */
+
+.hr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hr-popup {
+  background: #0b1220;
+  padding: 20px;
+  border-radius: 16px;
+}
+
+.hr-popup img {
+  max-width: 75vw;
+  max-height: 80vh;
+}
