@@ -56,7 +56,7 @@ export default function HandsReview() {
   };
 
   const deleteHand = async (hand) => {
-    if (!window.confirm("Supprimer cette image ?")) return;
+    // 🔥 Confirmation supprimée
 
     const path = hand.image_url.split("/hands-review/")[1];
 

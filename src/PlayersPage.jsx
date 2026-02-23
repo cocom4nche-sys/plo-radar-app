@@ -10,21 +10,21 @@ const COLORS = [
   "#ec4899",
 ];
 
-export default function App() {
+export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const [toolWidth, setToolWidth] = useState(360);
-  const resizing = useRef(false);
   const fileInputRef = useRef(null);
+  const saveTimeout = useRef(null);
+
+  const [isSaving, setIsSaving] = useState(false);
 
   const [name, setName] = useState("");
-  const [color, setColor] = useState(COLORS[0]);
+  const [color, setColor] = useState(null); // ✅ plus de vert par défaut
   const [exploit, setExploit] = useState("");
 
   const [images, setImages] = useState([]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
   const [notes, setNotes] = useState({
@@ -49,47 +49,65 @@ export default function App() {
   function resetForm() {
     setSelectedPlayer(null);
     setName("");
-    setColor(COLORS[0]);
+    setColor(null);
     setExploit("");
     setImages([]);
-    setSelectedImageIndex(null);
     setNotes({ preflop: "", twobp: "", threebp: "" });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function savePlayer() {
+  async function createPlayer() {
     if (!name.trim()) return;
 
     const payload = {
       name: name.trim(),
       color,
       exploit,
-      preflop: notes.preflop,
-      twobp: notes.twobp,
-      threebp: notes.threebp,
+      ...notes,
       statsimages: images,
     };
 
-    if (selectedPlayer) {
-      await supabase
-        .from("players")
-        .update(payload)
-        .eq("id", selectedPlayer.id);
-    } else {
-      const { data } = await supabase
-        .from("players")
-        .insert([payload])
-        .select()
-        .single();
+    const { data } = await supabase
+      .from("players")
+      .insert([payload])
+      .select()
+      .single();
 
-      setSelectedPlayer(data);
-    }
-
+    setSelectedPlayer(data);
     await fetchPlayers();
   }
 
-  async function deletePlayer() {
+  function autoSave() {
     if (!selectedPlayer) return;
 
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+    setIsSaving(true);
+
+    saveTimeout.current = setTimeout(async () => {
+      await supabase
+        .from("players")
+        .update({
+          name,
+          color,
+          exploit,
+          ...notes,
+          statsimages: images,
+        })
+        .eq("id", selectedPlayer.id);
+
+      setIsSaving(false);
+      await fetchPlayers();
+    }, 800);
+  }
+
+  useEffect(() => {
+    autoSave();
+  }, [name, color, exploit, notes, images]);
+
+  async function deletePlayer() {
+    if (!selectedPlayer) return;
     if (!window.confirm("Supprimer ce joueur définitivement ?")) return;
 
     await supabase
@@ -103,11 +121,11 @@ export default function App() {
 
   async function uploadFile(file) {
     if (!selectedPlayer) {
-      alert("Crée ou sélectionne un joueur avant d'upload.");
+      alert("Crée le joueur avant d'upload.");
       return;
     }
 
-    const fileName = `${Date.now()}-${file.name}`;
+    const fileName = `${selectedPlayer.id}-${Date.now()}-${file.name}`;
 
     const { error } = await supabase.storage
       .from("tracker-images")
@@ -123,42 +141,24 @@ export default function App() {
       .getPublicUrl(fileName);
 
     const updatedImages = [...images, data.publicUrl];
-
     setImages(updatedImages);
-    setSelectedImageIndex(updatedImages.length - 1);
 
-    await supabase
-      .from("players")
-      .update({ statsimages: updatedImages })
-      .eq("id", selectedPlayer.id);
-  }
-
-  async function removeImage(index) {
-    if (!selectedPlayer) return;
-
-    const updated = images.filter((_, i) => i !== index);
-
-    setImages(updated);
-    setSelectedImageIndex(null);
-
-    await supabase
-      .from("players")
-      .update({ statsimages: updated })
-      .eq("id", selectedPlayer.id);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function selectPlayer(player) {
     setSelectedPlayer(player);
     setName(player.name);
-    setColor(player.color ?? COLORS[0]);
+    setColor(player.color || null);
     setExploit(player.exploit || "");
     setImages(player.statsimages || []);
-    setSelectedImageIndex(null);
     setNotes({
       preflop: player.preflop || "",
       twobp: player.twobp || "",
       threebp: player.threebp || "",
     });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function handleDrop(e) {
@@ -184,7 +184,9 @@ export default function App() {
               onClick={() => selectPlayer(player)}
               style={{
                 ...styles.playerItem,
-                border: `1px solid ${player.color || "#334155"}`,
+                border: player.color
+                  ? `1px solid ${player.color}`
+                  : "1px solid #334155",
               }}
             >
               {player.name}
@@ -194,10 +196,16 @@ export default function App() {
 
       <div style={styles.main}>
         <div style={styles.header}>
-          <div style={{ ...styles.dot, background: color }} />
+          {color && <div style={{ ...styles.dot, background: color }} />}
           <h2 style={styles.title}>
-            {selectedPlayer ? selectedPlayer.name : "NOUVEAU JOUEUR"}
+            {selectedPlayer ? selectedPlayer.name : "Créer joueur"}
           </h2>
+
+          {selectedPlayer && (
+            <div style={styles.saveIndicator}>
+              {isSaving ? "Sauvegarde..." : "✓ Sauvegardé"}
+            </div>
+          )}
         </div>
 
         <div style={styles.topBar}>
@@ -205,7 +213,10 @@ export default function App() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nom du joueur"
-            style={{ ...styles.input, borderColor: color }}
+            style={{
+              ...styles.input,
+              borderColor: color || "#334155",
+            }}
           />
 
           <div style={styles.colorRow}>
@@ -222,8 +233,15 @@ export default function App() {
             ))}
           </div>
 
-          <button onClick={resetForm} style={styles.btnGhost}>Nouveau</button>
-          <button onClick={savePlayer} style={styles.btnPrimary}>Sauvegarder</button>
+          <button
+            onClick={() => {
+              if (selectedPlayer) resetForm();
+              else createPlayer();
+            }}
+            style={styles.btnPrimary}
+          >
+            Créer joueur
+          </button>
 
           {selectedPlayer && (
             <button onClick={deletePlayer} style={styles.btnDanger}>
@@ -266,7 +284,6 @@ export default function App() {
             <img
               key={index}
               src={img}
-              onClick={()=>setSelectedImageIndex(index)}
               style={styles.thumb}
             />
           ))}
@@ -296,7 +313,7 @@ const styles = {
   toggleBtn:{background:"none",border:"none",color:"#9ca3af",cursor:"pointer"},
   playerItem:{padding:10,borderRadius:12,marginBottom:10,background:"rgba(255,255,255,0.03)",cursor:"pointer"},
   main:{flex:1,padding:40},
-  tool:{padding:20,borderLeft:"1px solid rgba(255,255,255,0.05)"},
+  tool:{padding:20,borderLeft:"1px solid rgba(255,255,255,0.05)",width:320},
   uploadTitle:{marginBottom:12,fontSize:14,color:"#94a3b8"},
   uploadBox:{display:"flex",justifyContent:"center",alignItems:"center",height:80,borderRadius:12,cursor:"pointer",marginBottom:20},
   thumbGrid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,90px)",gap:12},
@@ -304,6 +321,7 @@ const styles = {
   header:{display:"flex",alignItems:"center",gap:10,marginBottom:20},
   dot:{width:10,height:10,borderRadius:"50%"},
   title:{margin:0},
+  saveIndicator:{marginLeft:"auto",fontSize:12,color:"#22c55e"},
   topBar:{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"},
   input:{padding:8,borderRadius:10,background:"#0f172a",color:"white",border:"1px solid"},
   colorRow:{display:"flex",gap:6},
@@ -312,7 +330,6 @@ const styles = {
   cardTitle:{fontSize:12,marginBottom:8,color:"#94a3b8"},
   textarea:{width:"100%",height:120,borderRadius:10,padding:10,background:"#0f172a",color:"white",border:"1px solid rgba(255,255,255,0.08)",resize:"none"},
   textareaSmall:{width:"100%",height:80,borderRadius:10,padding:10,background:"#0f172a",color:"white",border:"1px solid rgba(255,255,255,0.08)",resize:"none"},
-  btnGhost:{padding:"6px 12px",borderRadius:8,background:"#1f2937",border:"none",color:"white",cursor:"pointer"},
   btnPrimary:{padding:"6px 12px",borderRadius:8,background:"#22c55e",border:"none",color:"white",cursor:"pointer"},
   btnDanger:{padding:"6px 12px",borderRadius:8,background:"#ef4444",border:"none",color:"white",cursor:"pointer"},
 };
