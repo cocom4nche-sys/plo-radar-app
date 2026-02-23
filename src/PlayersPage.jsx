@@ -14,6 +14,7 @@ export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState(null);
 
   const fileInputRef = useRef(null);
   const saveTimeout = useRef(null);
@@ -21,11 +22,12 @@ export default function PlayersPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [name, setName] = useState("");
-  const [color, setColor] = useState(null); // ✅ plus de vert par défaut
+  const [color, setColor] = useState(null);
   const [exploit, setExploit] = useState("");
 
   const [images, setImages] = useState([]);
   const [dragOver, setDragOver] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const [notes, setNotes] = useState({
     preflop: "",
@@ -34,13 +36,20 @@ export default function PlayersPage() {
   });
 
   useEffect(() => {
-    fetchPlayers();
+    init();
   }, []);
 
-  async function fetchPlayers() {
+  async function init() {
+    const { data } = await supabase.auth.getUser();
+    setUser(data.user);
+    if (data.user) fetchPlayers(data.user.id);
+  }
+
+  async function fetchPlayers(userId) {
     const { data } = await supabase
       .from("players")
       .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     setPlayers(data || []);
@@ -53,12 +62,10 @@ export default function PlayersPage() {
     setExploit("");
     setImages([]);
     setNotes({ preflop: "", twobp: "", threebp: "" });
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function createPlayer() {
-    if (!name.trim()) return;
+    if (!name.trim() || !user) return;
 
     const payload = {
       name: name.trim(),
@@ -66,21 +73,27 @@ export default function PlayersPage() {
       exploit,
       ...notes,
       statsimages: images,
+      user_id: user.id,
     };
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("players")
       .insert([payload])
       .select()
       .single();
 
+    if (error) {
+      console.error(error);
+      alert("Erreur création joueur");
+      return;
+    }
+
     setSelectedPlayer(data);
-    await fetchPlayers();
+    await fetchPlayers(user.id);
   }
 
   function autoSave() {
     if (!selectedPlayer) return;
-
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
 
     setIsSaving(true);
@@ -98,7 +111,7 @@ export default function PlayersPage() {
         .eq("id", selectedPlayer.id);
 
       setIsSaving(false);
-      await fetchPlayers();
+      await fetchPlayers(user.id);
     }, 800);
   }
 
@@ -110,12 +123,8 @@ export default function PlayersPage() {
     if (!selectedPlayer) return;
     if (!window.confirm("Supprimer ce joueur définitivement ?")) return;
 
-    await supabase
-      .from("players")
-      .delete()
-      .eq("id", selectedPlayer.id);
-
-    await fetchPlayers();
+    await supabase.from("players").delete().eq("id", selectedPlayer.id);
+    await fetchPlayers(user.id);
     resetForm();
   }
 
@@ -140,10 +149,11 @@ export default function PlayersPage() {
       .from("tracker-images")
       .getPublicUrl(fileName);
 
-    const updatedImages = [...images, data.publicUrl];
-    setImages(updatedImages);
+    setImages([...images, data.publicUrl]);
+  }
 
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  function removeImage(index) {
+    setImages(images.filter((_, i) => i !== index));
   }
 
   function selectPlayer(player) {
@@ -157,8 +167,6 @@ export default function PlayersPage() {
       twobp: player.twobp || "",
       threebp: player.threebp || "",
     });
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function handleDrop(e) {
@@ -197,10 +205,7 @@ export default function PlayersPage() {
       <div style={styles.main}>
         <div style={styles.header}>
           {color && <div style={{ ...styles.dot, background: color }} />}
-          <h2 style={styles.title}>
-            {selectedPlayer ? selectedPlayer.name : "Créer joueur"}
-          </h2>
-
+          <h2>{selectedPlayer ? selectedPlayer.name : "Créer joueur"}</h2>
           {selectedPlayer && (
             <div style={styles.saveIndicator}>
               {isSaving ? "Sauvegarde..." : "✓ Sauvegardé"}
@@ -213,10 +218,7 @@ export default function PlayersPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nom du joueur"
-            style={{
-              ...styles.input,
-              borderColor: color || "#334155",
-            }}
+            style={styles.input}
           />
 
           <div style={styles.colorRow}>
@@ -281,14 +283,28 @@ export default function PlayersPage() {
 
         <div style={styles.thumbGrid}>
           {images.map((img,index)=>(
-            <img
-              key={index}
-              src={img}
-              style={styles.thumb}
-            />
+            <div key={index} style={styles.imageWrapper}>
+              <img
+                src={img}
+                style={styles.thumb}
+                onClick={()=>setPreviewImage(img)}
+              />
+              <button
+                style={styles.deleteImageBtn}
+                onClick={()=>removeImage(index)}
+              >
+                ✕
+              </button>
+            </div>
           ))}
         </div>
       </div>
+
+      {previewImage && (
+        <div style={styles.modalOverlay} onClick={()=>setPreviewImage(null)}>
+          <img src={previewImage} style={styles.modalImage}/>
+        </div>
+      )}
     </div>
   );
 }
@@ -312,18 +328,21 @@ const styles = {
   sidebarHeader:{display:"flex",justifyContent:"space-between",marginBottom:20,fontSize:12},
   toggleBtn:{background:"none",border:"none",color:"#9ca3af",cursor:"pointer"},
   playerItem:{padding:10,borderRadius:12,marginBottom:10,background:"rgba(255,255,255,0.03)",cursor:"pointer"},
-  main:{flex:1,padding:40},
-  tool:{padding:20,borderLeft:"1px solid rgba(255,255,255,0.05)",width:320},
+  main:{flex:1,padding:40,maxWidth:"900px"},
+  tool:{padding:30,borderLeft:"1px solid rgba(255,255,255,0.05)",width:480},
   uploadTitle:{marginBottom:12,fontSize:14,color:"#94a3b8"},
-  uploadBox:{display:"flex",justifyContent:"center",alignItems:"center",height:80,borderRadius:12,cursor:"pointer",marginBottom:20},
-  thumbGrid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,90px)",gap:12},
-  thumb:{width:90,height:90,objectFit:"cover",borderRadius:8},
+  uploadBox:{display:"flex",justifyContent:"center",alignItems:"center",height:120,borderRadius:12,cursor:"pointer",marginBottom:20},
+  thumbGrid:{display:"flex",flexDirection:"column",gap:20},
+  imageWrapper:{position:"relative",width:"100%"},
+  thumb:{width:"100%",height:"auto",borderRadius:12,cursor:"pointer"},
+  deleteImageBtn:{position:"absolute",top:10,right:10,background:"rgba(239,68,68,0.9)",border:"none",borderRadius:"50%",width:28,height:28,color:"white",cursor:"pointer"},
+  modalOverlay:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",display:"flex",justifyContent:"center",alignItems:"center",zIndex:1000},
+  modalImage:{maxWidth:"90%",maxHeight:"90%",borderRadius:16},
   header:{display:"flex",alignItems:"center",gap:10,marginBottom:20},
   dot:{width:10,height:10,borderRadius:"50%"},
-  title:{margin:0},
   saveIndicator:{marginLeft:"auto",fontSize:12,color:"#22c55e"},
   topBar:{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"},
-  input:{padding:8,borderRadius:10,background:"#0f172a",color:"white",border:"1px solid"},
+  input:{padding:8,borderRadius:10,background:"#0f172a",color:"white",border:"1px solid #334155"},
   colorRow:{display:"flex",gap:6},
   colorDot:{width:18,height:18,borderRadius:"50%",cursor:"pointer"},
   card:{background:"rgba(255,255,255,0.03)",padding:20,borderRadius:16,marginBottom:20},

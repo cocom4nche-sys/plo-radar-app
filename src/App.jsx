@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import PlayersPage from "./PlayersPage";
 import HandsReview from "./HandsReview";
+import SessionsPage from "./SessionsPage";
 import Login from "./Login";
 
 export default function App() {
@@ -31,7 +32,14 @@ export default function App() {
 
   if (loading) {
     return (
-      <div style={{ color: "white", padding: 20, background: "#0b1220", minHeight: "100vh" }}>
+      <div
+        style={{
+          color: "white",
+          padding: 20,
+          background: "#0b1220",
+          minHeight: "100vh",
+        }}
+      >
         Loading...
       </div>
     );
@@ -81,6 +89,20 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setPage("sessions")}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 8,
+            border: "none",
+            cursor: "pointer",
+            background: page === "sessions" ? "#a855f7" : "#1e293b",
+            color: "white",
+          }}
+        >
+          Session Debrief
+        </button>
+
+        <button
           onClick={async () => {
             await supabase.auth.signOut();
           }}
@@ -100,6 +122,7 @@ export default function App() {
 
       {page === "players" && <PlayersPage />}
       {page === "review" && <HandsReview />}
+      {page === "sessions" && <SessionsPage />}
     </>
   );
 }
