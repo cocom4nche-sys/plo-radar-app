@@ -163,12 +163,10 @@ export default function PlayersPage() {
       .eq("id", selectedPlayer.id);
   }
 
-  // 🔥 FIX COMPLET SUPPRESSION IMAGE
   async function removeImage(index) {
     if (!selectedPlayer) return;
 
     const imageUrl = images[index];
-
     const filePath = imageUrl.split("/tracker-images/")[1];
 
     await supabase.storage
@@ -184,7 +182,6 @@ export default function PlayersPage() {
       .eq("id", selectedPlayer.id);
   }
 
-  // 🔥 FIX SELECT PLAYER (reload propre depuis DB)
   async function selectPlayer(player) {
     const { data } = await supabase
       .from("players")
@@ -245,45 +242,6 @@ export default function PlayersPage() {
             <div style={styles.saveIndicator}>
               {isSaving ? "Sauvegarde..." : "✓ Sauvegardé"}
             </div>
-          )}
-        </div>
-
-        <div style={styles.topBar}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nom du joueur"
-            style={styles.input}
-          />
-
-          <div style={styles.colorRow}>
-            {COLORS.map((c) => (
-              <div
-                key={c}
-                onClick={() => setColor(c)}
-                style={{
-                  ...styles.colorDot,
-                  background: c,
-                  border: color === c ? "2px solid white" : "none",
-                }}
-              />
-            ))}
-          </div>
-
-          <button
-            onClick={() => {
-              if (selectedPlayer) resetForm();
-              else createPlayer();
-            }}
-            style={styles.btnPrimary}
-          >
-            Créer joueur
-          </button>
-
-          {selectedPlayer && (
-            <button onClick={deletePlayer} style={styles.btnDanger}>
-              Supprimer
-            </button>
           )}
         </div>
 
@@ -392,8 +350,26 @@ const styles = {
   colorDot: { width: 18, height: 18, borderRadius: "50%", cursor: "pointer" },
   card: { background: "rgba(255,255,255,0.03)", padding: 20, borderRadius: 16, marginBottom: 20 },
   cardTitle: { fontSize: 12, marginBottom: 8, color: "#94a3b8" },
-  textarea: { width: "100%", height: 120, borderRadius: 10, padding: 10, background: "#0f172a", color: "white", border: "1px solid rgba(255,255,255,0.08)", resize: "none" },
-  textareaSmall: { width: "100%", height: 80, borderRadius: 10, padding: 10, background: "#0f172a", color: "white", border: "1px solid rgba(255,255,255,0.08)", resize: "none" },
+  textarea: {
+    width: "100%",
+    height: 120,
+    borderRadius: 10,
+    padding: 10,
+    background: "#0f172a",
+    color: "white",
+    border: "1px solid rgba(255,255,255,0.08)",
+    resize: "vertical"
+  },
+  textareaSmall: {
+    width: "100%",
+    height: 80,
+    borderRadius: 10,
+    padding: 10,
+    background: "#0f172a",
+    color: "white",
+    border: "1px solid rgba(255,255,255,0.08)",
+    resize: "vertical"
+  },
   btnPrimary: { padding: "6px 12px", borderRadius: 8, background: "#22c55e", border: "none", color: "white", cursor: "pointer" },
   btnDanger: { padding: "6px 12px", borderRadius: 8, background: "#ef4444", border: "none", color: "white", cursor: "pointer" },
 };
