@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 import PlayersPage from "./PlayersPage";
 import HandsReview from "./HandsReview";
 import SessionsPage from "./SessionsPage";
-import Login from "./Login";
+import Login from "./login";
 
 export default function App() {
   const [page, setPage] = useState("players");
@@ -19,34 +19,24 @@ export default function App() {
 
     getSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          color: "white",
-          padding: 20,
-          background: "#0b1220",
-          minHeight: "100vh",
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
+  if (loading) return null;
 
   if (!session) {
-    return <Login />;
+    return <Login onLogin={setSession} />;
   }
 
   return (
@@ -92,9 +82,9 @@ export default function App() {
           onClick={() => setPage("sessions")}
           style={{
             padding: "6px 12px",
-            borderRadius: 8,
             border: "none",
             cursor: "pointer",
+            borderRadius: 8,
             background: page === "sessions" ? "#a855f7" : "#1e293b",
             color: "white",
           }}
@@ -102,22 +92,21 @@ export default function App() {
           Session Debrief
         </button>
 
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-          }}
-          style={{
-            marginLeft: "auto",
-            padding: "6px 12px",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            background: "#ef4444",
-            color: "white",
-          }}
-        >
-          Logout
-        </button>
+        <div style={{ marginLeft: "auto" }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              background: "#ef4444",
+              color: "white",
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {page === "players" && <PlayersPage />}

@@ -1,21 +1,32 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
 
-const FIXED_EMAIL = "admin@ploradar.app";
-
-export default function Login() {
+export default function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: FIXED_EMAIL,
+    setError(null);
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
       password,
     });
 
     if (error) {
-      setError("Mot de passe incorrect");
+      setError(error.message);
+      setLoading(false);
+      return;
     }
+
+    if (data?.session) {
+      onLogin(data.session);
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -33,7 +44,7 @@ export default function Login() {
           background: "#111827",
           padding: 30,
           borderRadius: 12,
-          width: 300,
+          width: 320,
           display: "flex",
           flexDirection: "column",
           gap: 12,
@@ -44,12 +55,24 @@ export default function Login() {
         </h2>
 
         <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 6,
+            border: "none",
+          }}
+        />
+
+        <input
           type="password"
           placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{
-            padding: 8,
+            padding: 10,
             borderRadius: 6,
             border: "none",
           }}
@@ -57,8 +80,9 @@ export default function Login() {
 
         <button
           onClick={handleLogin}
+          disabled={loading}
           style={{
-            padding: 8,
+            padding: 10,
             borderRadius: 6,
             border: "none",
             background: "#22c55e",
@@ -66,11 +90,11 @@ export default function Login() {
             cursor: "pointer",
           }}
         >
-          Entrer
+          {loading ? "Connexion..." : "Entrer"}
         </button>
 
         {error && (
-          <div style={{ color: "red", fontSize: 12 }}>
+          <div style={{ color: "red", fontSize: 13 }}>
             {error}
           </div>
         )}
