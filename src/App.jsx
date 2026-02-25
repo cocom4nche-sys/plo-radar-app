@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 import PlayersPage from "./PlayersPage";
 import HandsReview from "./HandsReview";
 import SessionsPage from "./SessionsPage";
-import Login from "./login";
+import Login from "./Login"; // ✅ FIX CASE SENSITIVE
 
 export default function App() {
   const [page, setPage] = useState("players");
