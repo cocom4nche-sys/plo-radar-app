@@ -15,7 +15,10 @@ export default function PlayersPage() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState(null);
+  const [search, setSearch] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
+  const searchRef = useRef(null);
   const fileInputRef = useRef(null);
   const saveTimeout = useRef(null);
 
@@ -37,6 +40,16 @@ export default function PlayersPage() {
 
   useEffect(() => {
     init();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowPreview(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   async function init() {
@@ -85,7 +98,6 @@ export default function PlayersPage() {
       .single();
 
     if (error) {
-      console.error(error);
       alert("Erreur création joueur");
       return;
     }
@@ -199,6 +211,9 @@ export default function PlayersPage() {
       bp2: data.bp2 || "",
       bp3: data.bp3 || "",
     });
+
+    setSearch("");
+    setShowPreview(false);
   }
 
   function handleDrop(e) {
@@ -206,6 +221,10 @@ export default function PlayersPage() {
     setDragOver(false);
     Array.from(e.dataTransfer.files).forEach(uploadFile);
   }
+
+  const filteredPlayers = players.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={styles.layout}>
@@ -217,31 +236,95 @@ export default function PlayersPage() {
           </button>
         </div>
 
-        {!collapsed &&
-          players.map((player) => (
-            <div
-              key={player.id}
-              onClick={() => selectPlayer(player)}
-              style={{
-                ...styles.playerItem,
-                border: player.color
-                  ? `1px solid ${player.color}`
-                  : "1px solid #334155",
-              }}
-            >
-              {player.name}
+        {!collapsed && (
+          <>
+            <div ref={searchRef} style={{ position: "relative" }}>
+              <input
+                placeholder="Rechercher..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setShowPreview(true);
+                }}
+                style={styles.searchInput}
+              />
+
+              {showPreview && search && (
+                <div style={styles.previewDropdown}>
+                  {filteredPlayers.slice(0, 6).map((player) => (
+                    <div
+                      key={player.id}
+                      style={styles.previewItem}
+                      onClick={() => selectPlayer(player)}
+                    >
+                      {player.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+
+            {filteredPlayers.map((player) => (
+              <div
+                key={player.id}
+                onClick={() => selectPlayer(player)}
+                style={{
+                  ...styles.playerItem,
+                  border: player.color
+                    ? `1px solid ${player.color}`
+                    : "1px solid #334155",
+                }}
+              >
+                {player.name}
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div style={styles.main}>
-        <div style={styles.header}>
-          {color && <div style={{ ...styles.dot, background: color }} />}
-          <h2>{selectedPlayer ? selectedPlayer.name : "Créer joueur"}</h2>
+        <div style={{ ...styles.header, justifyContent: "center" }}>
+          <h2 style={{ textAlign: "center" }}>
+            {selectedPlayer ? selectedPlayer.name : "Créer joueur"}
+          </h2>
+        </div>
+
+        <div style={styles.topBar}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom du joueur"
+            style={styles.input}
+          />
+
+          <div style={styles.colorRow}>
+            {COLORS.map((c) => (
+              <div
+                key={c}
+                onClick={() => setColor(c)}
+                style={{
+                  ...styles.colorDot,
+                  background: c,
+                  border: color === c ? "2px solid white" : "none",
+                }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              if (selectedPlayer) resetForm();
+              else createPlayer();
+            }}
+            style={styles.btnPrimary}
+          >
+            Créer joueur
+          </button>
+
           {selectedPlayer && (
-            <div style={styles.saveIndicator}>
-              {isSaving ? "Sauvegarde..." : "✓ Sauvegardé"}
-            </div>
+            <button onClick={deletePlayer} style={styles.btnDanger}>
+              Supprimer
+            </button>
           )}
         </div>
 
@@ -330,6 +413,9 @@ const styles = {
   sidebar: { padding: 20, background: "#111827" },
   sidebarHeader: { display: "flex", justifyContent: "space-between", marginBottom: 20, fontSize: 12 },
   toggleBtn: { background: "none", border: "none", color: "#9ca3af", cursor: "pointer" },
+  searchInput: { width: "100%", padding: 8, marginBottom: 15, borderRadius: 8, background: "#0f172a", color: "white", border: "1px solid #334155" },
+  previewDropdown: { position: "absolute", top: 45, left: 0, right: 0, background: "#111827", border: "1px solid #334155", borderRadius: 8, zIndex: 20, maxHeight: 200, overflowY: "auto" },
+  previewItem: { padding: 8, cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" },
   playerItem: { padding: 10, borderRadius: 12, marginBottom: 10, background: "rgba(255,255,255,0.03)", cursor: "pointer" },
   main: { flex: 1, padding: 40, maxWidth: "900px" },
   tool: { padding: 30, borderLeft: "1px solid rgba(255,255,255,0.05)", width: 480 },
@@ -341,35 +427,15 @@ const styles = {
   deleteImageBtn: { position: "absolute", top: 10, right: 10, background: "rgba(239,68,68,0.9)", border: "none", borderRadius: "50%", width: 28, height: 28, color: "white", cursor: "pointer" },
   modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
   modalImage: { maxWidth: "90%", maxHeight: "90%", borderRadius: 16 },
-  header: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 },
-  dot: { width: 10, height: 10, borderRadius: "50%" },
-  saveIndicator: { marginLeft: "auto", fontSize: 12, color: "#22c55e" },
+  header: { display: "flex", alignItems: "center", marginBottom: 20 },
   topBar: { display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" },
   input: { padding: 8, borderRadius: 10, background: "#0f172a", color: "white", border: "1px solid #334155" },
   colorRow: { display: "flex", gap: 6 },
   colorDot: { width: 18, height: 18, borderRadius: "50%", cursor: "pointer" },
   card: { background: "rgba(255,255,255,0.03)", padding: 20, borderRadius: 16, marginBottom: 20 },
   cardTitle: { fontSize: 12, marginBottom: 8, color: "#94a3b8" },
-  textarea: {
-    width: "100%",
-    height: 120,
-    borderRadius: 10,
-    padding: 10,
-    background: "#0f172a",
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.08)",
-    resize: "vertical"
-  },
-  textareaSmall: {
-    width: "100%",
-    height: 80,
-    borderRadius: 10,
-    padding: 10,
-    background: "#0f172a",
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.08)",
-    resize: "vertical"
-  },
+  textarea: { width: "100%", minHeight: 120, resize: "vertical", borderRadius: 10, padding: 10, background: "#0f172a", color: "white", border: "1px solid rgba(255,255,255,0.08)" },
+  textareaSmall: { width: "100%", minHeight: 80, resize: "vertical", borderRadius: 10, padding: 10, background: "#0f172a", color: "white", border: "1px solid rgba(255,255,255,0.08)" },
   btnPrimary: { padding: "6px 12px", borderRadius: 8, background: "#22c55e", border: "none", color: "white", cursor: "pointer" },
   btnDanger: { padding: "6px 12px", borderRadius: 8, background: "#ef4444", border: "none", color: "white", cursor: "pointer" },
 };
