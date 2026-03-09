@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "./supabaseClient";
 
+// Ajout d'une nouvelle couleur "bleu ciel" (#0ea5e9).
 const COLORS = [
   "#22c55e",
   "#3b82f6",
@@ -8,6 +9,7 @@ const COLORS = [
   "#f59e0b",
   "#a855f7",
   "#ec4899",
+  "#0ea5e9", // bleu ciel
 ];
 
 export default function PlayersPage() {
@@ -284,7 +286,17 @@ export default function PlayersPage() {
 
       <div style={styles.main}>
         <div style={{ ...styles.header, justifyContent: "center" }}>
-          <h2 style={{ textAlign: "center" }}>
+          {/* Le nom du joueur est maintenant entouré d'une bordure colorée lorsque le joueur est sélectionné */}
+          <h2
+            style={{
+              textAlign: "center",
+              padding: "8px",
+              borderRadius: "8px",
+              border: selectedPlayer?.color
+                ? `2px solid ${selectedPlayer.color}`
+                : "2px solid transparent",
+            }}
+          >
             {selectedPlayer ? selectedPlayer.name : "Créer joueur"}
           </h2>
         </div>
